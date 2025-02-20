@@ -1,7 +1,7 @@
 ---
 title: "Lab 06 - Ugly charts and Simpson's paradox"
-author: "Insert your name here"
-date: "Insert date here"
+author: "Cynthia Jiao"
+date: "2/17/2025"
 output: github_document
 ---
 
@@ -9,26 +9,234 @@ output: github_document
 
 ```{r load-packages, message = FALSE}
 library(tidyverse) 
+library(dplyr)
 library(dsbox)
 library(mosaicData) 
+library(readxl)
 ```
 
-### Exercise 1
+```{r connect-github}
 
-Remove this text, and add your answer for Exercise 1 here.
-Add code chunks as needed.
-Don't forget to label your code chunk.
-Do not use spaces in code chunk labels.
+library(usethis)
+use_git_config(
+  user.name = "CynthiaJiao",
+  user.email = "cynthia.rj.2001@gmail.com"
+)
+```
 
-### Exercise 2
+### Staff Data
 
-Remove this text, and add your answer for Exercise 1 here.
-Add code chunks as needed.
-Don't forget to label your code chunk.
-Do not use spaces in code chunk labels.
+```{r staff-long-data-graphs}
 
-### Exercise 3
+staff <- read_csv("data/instructional-staff.csv")
+print(staff)
 
-...
+## converting to long data
 
-Add exercise headings as needed.
+staff_long <- staff %>%
+  pivot_longer(cols = -faculty_type, names_to = "year") %>%
+  mutate(value = as.numeric(value))
+
+staff_long
+
+## line graph for long data!
+
+staff_long %>%
+  ggplot(aes(x = year, y = value, color = faculty_type)) +
+  geom_line()
+
+## group the observations in faculty type
+
+staff_long %>%
+  ggplot(aes(
+    x = year,
+    y = value,
+    group = faculty_type,
+    color = faculty_type
+  )) +
+  geom_line() +
+  ggtitle("Trends in Instructional Staff Employment Status, 1975-2011") +
+  labs(x = "Year", y = "Percent of Total Instructional Staff", color = "Faculty Types") +
+  theme_light()
+
+
+```
+
+```{r part-time-faculty-graph}
+
+## line graph to compare part-time faculty and non part-time faculty trends
+
+# Recode faculty_type into two categories
+staff_grouped <- staff_long %>%
+  mutate(faculty_group = ifelse(faculty_type == "Part-Time Faculty", 
+                                "Part-Time Faculty", 
+                                "Non-Part-Time Faculty")) %>%
+  group_by(year, faculty_group) %>%
+  summarize(value = sum(value), .groups = "drop") 
+
+# Plot only two groups: Part-Time vs. Non-Part-Time
+ggplot(staff_grouped, aes(x = year, y = value, color = faculty_group, group = faculty_group)) +
+  geom_line(size = 1) +
+  ggtitle("Trends in Part-Time vs. Non-Part-Time Faculty (1975-2011)") +
+  labs(x = "Year", y = "Percent of Total Instructional Staff", color = "Faculty Type") +
+  theme_light()
+
+```
+
+### Fisheries Data
+
+The given graphs are hard to read, because there are some huge outliers, making the rest data hard to read, especially in a 3D pie chart, where the slices are so small. I think a horizontal bar chart will improve the readability. It would also be more readable if not all countries are listed (e.g., only top 10 are listed; rest can be displayed in a table). In addition, the unit ton seems to be small for the amount of capture, using a larger unit or a log number would improve the readability. 
+
+```{r fieshery-graph-improve}
+
+fisheries <- read_csv("data/fisheries.csv")
+
+## create hundred thousand ton unit variable & arrange by most capture
+
+fisheries_capture <- fisheries %>% 
+  mutate(capture_100_thousand = capture / 1e5) %>%
+  arrange(desc(capture_100_thousand)) %>%
+  top_n(10, capture_100_thousand) 
+  
+
+## create the horizontal bar chart
+
+fisheries_capture %>%
+  ggplot(aes(
+    y = reorder(country, capture_100_thousand),  # Ensure countries are ordered by capture
+    x = capture_100_thousand, 
+    fill = capture_100_thousand
+  )) +
+  geom_col() +  
+  ggtitle("Capture by Country, 2016 (in hundred thousand tons)") +
+  labs(x = "Fish Capture (Hundred Thousand Tons)", y = "Country") +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") + 
+  theme_light()
+
+## create hundred thousand ton unit variable & arrange by most aquaculture
+
+fisheries_aqua <- fisheries %>% 
+  mutate(aqua_100_thousand = aquaculture / 1e5) %>%
+  arrange(desc(aqua_100_thousand)) %>%
+  top_n(10, aqua_100_thousand) 
+  
+
+## create the horizontal bar chart
+
+fisheries_aqua %>%
+  ggplot(aes(
+    y = reorder(country, aqua_100_thousand),  # Ensure countries are ordered by capture
+    x = aqua_100_thousand, 
+    fill = aqua_100_thousand
+  )) +
+  geom_col() +  
+  ggtitle("Aguaculture by Country, 2016 (in hundred thousand tons)") +
+  labs(x = "Fish Aquaculture (Hundred Thousand Tons)", y = "Country") +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") + 
+  theme_light()
+
+```
+### Smokers in Whickham Data
+
+```{r smoker-data}
+
+data(Whickham)
+??Whickham
+library(performance)
+
+```
+
+## Excercise 1, 2, and 3
+
+The data is most likely observational, because no control/randomly assigned conditions are reported.
+There are 1314 observations in the data, each representing a participant.
+There are 3 variables, representing their smoker status (categorical), age (continuous), and whether they are alive/dead (categorical).
+```{r smoker-excercise-3}
+
+Whickham %>%
+  ggplot(aes(
+  x = smoker,
+  color = smoker,
+  fill = smoker
+  )) +
+  geom_bar() +
+  ggtitle("Smoker or Non-smoker?") +
+  theme_minimal()
+
+Whickham %>%
+  ggplot(aes(
+  x = outcome,
+  color = outcome,
+  fill = outcome
+  )) +
+  geom_bar() +
+  ggtitle("Life Outcome") +
+  theme_minimal()
+
+Whickham %>%
+  ggplot(aes(x = age)) + 
+  geom_histogram(binwidth = 5, fill = "steelblue", color = "black", alpha = 0.7) + 
+  ggtitle("Age Distribution of Participants") + 
+  labs(x = "Age (Years)", y = "Number of Participants") + 
+  theme_minimal()
+
+```
+## Excercise 4 and 5
+
+Just based on the count, there are more alive non-smokers than smokers. I would probably expect that there is a relationship between smoker and health outcome such that being a smoker has worse health outcome than the non-smoker. However, from the graph, it is possible that the number differences between alive non-smokers vs. smokers are due to the fact that there are more alive participants in general. Therefore, I would say this relationship also needs to be examined in relation to age, where maybe smokers die earlier than non-smokers.
+
+```{r exercise-5}
+
+Whickham %>%
+  count(smoker, outcome)
+
+## graph the relationship between smoker status and life outcome
+
+Whickham %>%
+  ggplot(aes(
+  x = outcome,
+  color = smoker,
+  fill = smoker
+  )) + 
+  geom_bar(position = "dodge") +
+  labs(x = "Life outcome", y = "Count") +
+  ggtitle("Smoker vs. Non-smoker Life Outcome") +
+  theme_minimal()
+
+
+```
+## Excercise 6 and 7
+
+In the graph, for the 18-44 group, most individuals are alive, with minimal differences between smokers and non-smokers. For the 45-64 group, death increases, and a higher proportion of smokers are deceased compared to the younger group. In the 65+ group, deaths are more common, especially among smokers, suggesting a stronger long-term impact of smoking on health. This shift can be explained by age-related mortality risks and the cumulative effects of smoking over time. The contingency table shows a consistent pattern.
+
+```{r excercise-7}
+
+## add the new variable
+
+Whickham <- Whickham %>%
+  mutate(age_cat = case_when(
+    age <= 44 ~ "18-44",
+    age > 44 & age <= 64 ~ "45-64",
+    age > 64 ~ "65+"
+    ))
+
+## create a graph for all three variables
+
+Whickham %>%
+  count(smoker, age_cat, outcome)
+
+Whickham %>%
+  ggplot(aes(
+  x = outcome,
+  color = smoker,
+  fill = smoker
+  )) + 
+  geom_bar(position = "dodge") +
+  facet_wrap(~ age_cat) +
+  labs(x = "Life outcome", y = "Count") +
+  ggtitle("Smoker vs. Non-smoker Life Outcome") +
+  theme_minimal()
+
+
+```
+
